@@ -82,35 +82,40 @@ func GetSalesReport(db *sql.DB) http.HandlerFunc {
             FROM purchases pur
             JOIN users u ON pur.user_id = u.id
             JOIN products p ON pur.product_id = p.id
-            WHERE ($1::text IS NULL OR u.name ILIKE '%' || $1 || '%')
-              AND ($2::timestamp IS NULL OR pur.purchase_date >= $2)
-              AND ($3::timestamp IS NULL OR pur.purchase_date <= $3)
+            WHERE ($1 = '' OR u.name ILIKE '%' || $1 || '%')
+              AND ($2 = '' OR pur.purchase_date >= $2::date)
+              AND ($3 = '' OR pur.purchase_date <= $3::date)
+            ORDER BY pur.purchase_date DESC
         `
 
 		user := r.URL.Query().Get("user")
 		from := r.URL.Query().Get("from")
 		to := r.URL.Query().Get("to")
 
-		var rows *sql.Rows
-		var err error
-		if rows, err = db.Query(query, nullOrString(user), nullOrTime(from), nullOrTime(to)); err != nil {
+		rows, err := db.Query(query, user, from, to)
+		if err != nil {
 			http.Error(w, "Query failed", http.StatusInternalServerError)
 			return
 		}
 		defer rows.Close()
 
-		var results []map[string]interface{}
+		type Sale struct {
+			User    string `json:"user"`
+			Product string `json:"product"`
+			Price   int    `json:"price"`
+			Date    string `json:"date"` // formatted
+		}
+
+		var results []Sale
 		for rows.Next() {
-			var uname, pname string
-			var price int
-			var date time.Time
-			rows.Scan(&uname, &pname, &price, &date)
-			results = append(results, map[string]interface{}{
-				"user":    uname,
-				"product": pname,
-				"price":   price,
-				"date":    date,
-			})
+			var s Sale
+			var rawDate time.Time
+			if err := rows.Scan(&s.User, &s.Product, &s.Price, &rawDate); err != nil {
+				http.Error(w, "Scan failed", http.StatusInternalServerError)
+				return
+			}
+			s.Date = rawDate.Format("2006-01-02")
+			results = append(results, s)
 		}
 
 		json.NewEncoder(w).Encode(results)

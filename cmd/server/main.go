@@ -61,6 +61,6 @@ func main() {
 		port = "8000"
 	}
 
-	log.Printf("Listening on port %s 🚀", port)
+	log.Printf("Listening on port %s", port)
 	log.Fatal(http.ListenAndServe(":"+port, r))
 }
