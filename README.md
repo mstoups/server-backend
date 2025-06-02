@@ -1,5 +1,6 @@
 Rescounts Small HTTPS web server APIs.
 
-Run Docker.
-Run docker-compose up --build
-Use Postman Calls
+1. Run Docker.
+2. Run docker-compose up --build
+3. Use Postman Calls
+4. Add Authorization: Bearer {token} 
